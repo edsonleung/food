@@ -108,6 +108,109 @@
         }
         .filter-select:hover { border-color: var(--hot-pink); }
         .filter-select:focus { outline: none; border-color: var(--hot-pink); box-shadow: 0 0 0 3px rgba(218, 98, 176, 0.15); }
+
+        /* Multi-select Dropdown */
+        .multi-select-container {
+            position: relative;
+            width: 100%;
+        }
+        .multi-select-trigger {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 45px;
+        }
+        .multi-select-trigger:hover { border-color: var(--hot-pink); }
+        .multi-select-trigger.active { border-color: var(--hot-pink); box-shadow: 0 0 0 3px rgba(218, 98, 176, 0.15); }
+        .multi-select-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .multi-select-arrow {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s ease;
+        }
+        .multi-select-trigger.active .multi-select-arrow {
+            transform: rotate(180deg);
+        }
+        .multi-select-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(130, 62, 80, 0.15);
+            z-index: 10;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        .multi-select-dropdown.active {
+            display: block;
+        }
+        .multi-select-option {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .multi-select-option:hover {
+            background: var(--rose-quartz);
+        }
+        .multi-select-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .multi-select-option.selected .multi-select-checkbox {
+            background: var(--hot-pink);
+            border-color: var(--hot-pink);
+        }
+        .multi-select-option.selected .multi-select-checkbox::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .multi-select-label {
+            flex: 1;
+        }
+        .multi-select-clear {
+            padding: 0.5rem 1rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        .multi-select-clear:hover {
+            color: var(--hot-pink);
+        }
         .actions-row {
             display: flex;
             gap: 1rem;
@@ -498,25 +601,43 @@
             <div class="filters-grid">
                 <div class="filter-section">
                     <label class="filter-label">County</label>
-                    <select class="filter-select" id="countyFilter"><option value="">All Counties</option></select>
+                    <div class="multi-select-container" id="countyFilter">
+                        <div class="multi-select-trigger">
+                            <span class="multi-select-text">All Counties</span>
+                            <svg class="multi-select-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="multi-select-dropdown"></div>
+                    </div>
                 </div>
                 <div class="filter-section">
                     <label class="filter-label">Area</label>
-                    <select class="filter-select" id="areaFilter"><option value="">All Areas</option></select>
+                    <div class="multi-select-container" id="areaFilter">
+                        <div class="multi-select-trigger">
+                            <span class="multi-select-text">All Areas</span>
+                            <svg class="multi-select-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="multi-select-dropdown"></div>
+                    </div>
                 </div>
                 <div class="filter-section">
                     <label class="filter-label">Cuisine</label>
-                    <select class="filter-select" id="cuisineFilter"><option value="">All Cuisines</option></select>
+                    <div class="multi-select-container" id="cuisineFilter">
+                        <div class="multi-select-trigger">
+                            <span class="multi-select-text">All Cuisines</span>
+                            <svg class="multi-select-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="multi-select-dropdown"></div>
+                    </div>
                 </div>
                 <div class="filter-section">
                     <label class="filter-label">Price Point</label>
-                    <select class="filter-select" id="priceFilter">
-                        <option value="">Any Price</option>
-                        <option value="$">$ - Budget Friendly</option>
-                        <option value="$$">$$ - Moderate</option>
-                        <option value="$$$">$$$ - Upscale</option>
-                        <option value="$$$$">$$$$ - Fine Dining</option>
-                    </select>
+                    <div class="multi-select-container" id="priceFilter">
+                        <div class="multi-select-trigger">
+                            <span class="multi-select-text">Any Price</span>
+                            <svg class="multi-select-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="multi-select-dropdown"></div>
+                    </div>
                 </div>
             </div>
             <div class="actions-row">
@@ -636,19 +757,159 @@
 
     <script>
         const API_BASE = '';  // Same origin
-        
+
         let restaurants = [];
         let currentPhotos = [];
         let currentPhotoIndex = 0;
 
+        // Filter state
+        const filterState = {
+            county: [],
+            area: [],
+            cuisine: [],
+            price: []
+        };
+
         // DOM Elements
-        const countyFilter = document.getElementById('countyFilter');
-        const areaFilter = document.getElementById('areaFilter');
-        const cuisineFilter = document.getElementById('cuisineFilter');
-        const priceFilter = document.getElementById('priceFilter');
         const randomizeBtn = document.getElementById('randomizeBtn');
         const totalCount = document.getElementById('totalCount');
         const filteredCount = document.getElementById('filteredCount');
+
+        // Multi-Select Class
+        class MultiSelect {
+            constructor(containerId, filterKey, placeholder, options = []) {
+                this.container = document.getElementById(containerId);
+                this.filterKey = filterKey;
+                this.placeholder = placeholder;
+                this.options = options;
+                this.selectedValues = [];
+
+                this.trigger = this.container.querySelector('.multi-select-trigger');
+                this.dropdown = this.container.querySelector('.multi-select-dropdown');
+                this.textElement = this.container.querySelector('.multi-select-text');
+
+                this.init();
+            }
+
+            init() {
+                this.trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggle();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!this.container.contains(e.target)) {
+                        this.close();
+                    }
+                });
+
+                this.renderOptions();
+            }
+
+            toggle() {
+                const isActive = this.dropdown.classList.contains('active');
+                this.closeAll();
+                if (!isActive) {
+                    this.open();
+                }
+            }
+
+            open() {
+                this.trigger.classList.add('active');
+                this.dropdown.classList.add('active');
+            }
+
+            close() {
+                this.trigger.classList.remove('active');
+                this.dropdown.classList.remove('active');
+            }
+
+            closeAll() {
+                document.querySelectorAll('.multi-select-trigger').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.multi-select-dropdown').forEach(d => d.classList.remove('active'));
+            }
+
+            setOptions(options) {
+                this.options = options;
+                this.renderOptions();
+            }
+
+            renderOptions() {
+                this.dropdown.innerHTML = '';
+
+                this.options.forEach(option => {
+                    const optionEl = document.createElement('div');
+                    optionEl.className = 'multi-select-option';
+                    if (this.selectedValues.includes(option.value)) {
+                        optionEl.classList.add('selected');
+                    }
+
+                    optionEl.innerHTML = `
+                        <div class="multi-select-checkbox"></div>
+                        <div class="multi-select-label">${option.label}</div>
+                    `;
+
+                    optionEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.toggleOption(option.value);
+                    });
+
+                    this.dropdown.appendChild(optionEl);
+                });
+
+                if (this.options.length > 0) {
+                    const clearEl = document.createElement('div');
+                    clearEl.className = 'multi-select-clear';
+                    clearEl.textContent = 'Clear All';
+                    clearEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.clearAll();
+                    });
+                    this.dropdown.appendChild(clearEl);
+                }
+            }
+
+            toggleOption(value) {
+                const index = this.selectedValues.indexOf(value);
+                if (index > -1) {
+                    this.selectedValues.splice(index, 1);
+                } else {
+                    this.selectedValues.push(value);
+                }
+                filterState[this.filterKey] = this.selectedValues;
+                this.updateText();
+                this.renderOptions();
+                updateStats();
+                if (this.onChange) this.onChange();
+            }
+
+            clearAll() {
+                this.selectedValues = [];
+                filterState[this.filterKey] = [];
+                this.updateText();
+                this.renderOptions();
+                updateStats();
+                if (this.onChange) this.onChange();
+            }
+
+            updateText() {
+                if (this.selectedValues.length === 0) {
+                    this.textElement.textContent = this.placeholder;
+                } else if (this.selectedValues.length === 1) {
+                    const option = this.options.find(o => o.value === this.selectedValues[0]);
+                    this.textElement.textContent = option ? option.label : this.selectedValues[0];
+                } else {
+                    this.textElement.textContent = `${this.selectedValues.length} selected`;
+                }
+            }
+
+            getValue() {
+                return this.selectedValues;
+            }
+        }
+
+        // Initialize filters
+        let countyFilter, areaFilter, cuisineFilter, priceFilter;
 
         // Initialize
         async function init() {
@@ -669,52 +930,87 @@
         }
 
         async function loadFilters() {
+            // County filter
             const counties = [...new Set(restaurants.map(r => r.county))].sort();
-            counties.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c;
-                opt.textContent = c === 'LA' ? 'Los Angeles' : c === 'OC' ? 'Orange County' : c === 'VAN' ? 'Vancouver' : c;
-                countyFilter.appendChild(opt);
-            });
+            const countyOptions = counties.map(c => ({
+                value: c,
+                label: c === 'LA' ? 'Los Angeles' : c === 'OC' ? 'Orange County' : c === 'VAN' ? 'Vancouver' : c
+            }));
+            countyFilter = new MultiSelect('countyFilter', 'county', 'All Counties', countyOptions);
+            countyFilter.onChange = () => {
+                updateAreaOptions();
+                updateCuisineOptions();
+            };
+
+            // Price filter
+            const priceOptions = [
+                { value: '$', label: '$ - Budget Friendly' },
+                { value: '$$', label: '$$ - Moderate' },
+                { value: '$$$', label: '$$$ - Upscale' },
+                { value: '$$$$', label: '$$$$ - Fine Dining' }
+            ];
+            priceFilter = new MultiSelect('priceFilter', 'price', 'Any Price', priceOptions);
+
             updateAreaOptions();
             updateCuisineOptions();
         }
 
         function updateAreaOptions() {
-            const county = countyFilter.value;
-            const filtered = county ? restaurants.filter(r => r.county === county) : restaurants;
+            let filtered = restaurants;
+            if (filterState.county.length > 0) {
+                filtered = filtered.filter(r => filterState.county.includes(r.county));
+            }
             const areas = [...new Set(filtered.map(r => r.area))].sort();
-            areaFilter.innerHTML = '<option value="">All Areas</option>';
-            areas.forEach(a => {
-                const opt = document.createElement('option');
-                opt.value = a;
-                opt.textContent = a;
-                areaFilter.appendChild(opt);
-            });
+            const areaOptions = areas.map(a => ({ value: a, label: a }));
+
+            if (!areaFilter) {
+                areaFilter = new MultiSelect('areaFilter', 'area', 'All Areas', areaOptions);
+                areaFilter.onChange = updateCuisineOptions;
+            } else {
+                const previousSelection = areaFilter.selectedValues.filter(v => areas.includes(v));
+                areaFilter.setOptions(areaOptions);
+                areaFilter.selectedValues = previousSelection;
+                filterState.area = previousSelection;
+                areaFilter.updateText();
+            }
         }
 
         function updateCuisineOptions() {
-            const county = countyFilter.value;
-            const area = areaFilter.value;
             let filtered = restaurants;
-            if (county) filtered = filtered.filter(r => r.county === county);
-            if (area) filtered = filtered.filter(r => r.area === area);
+            if (filterState.county.length > 0) {
+                filtered = filtered.filter(r => filterState.county.includes(r.county));
+            }
+            if (filterState.area.length > 0) {
+                filtered = filtered.filter(r => filterState.area.includes(r.area));
+            }
             const cuisines = [...new Set(filtered.map(r => r.cuisine))].sort();
-            cuisineFilter.innerHTML = '<option value="">All Cuisines</option>';
-            cuisines.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c;
-                opt.textContent = c;
-                cuisineFilter.appendChild(opt);
-            });
+            const cuisineOptions = cuisines.map(c => ({ value: c, label: c }));
+
+            if (!cuisineFilter) {
+                cuisineFilter = new MultiSelect('cuisineFilter', 'cuisine', 'All Cuisines', cuisineOptions);
+            } else {
+                const previousSelection = cuisineFilter.selectedValues.filter(v => cuisines.includes(v));
+                cuisineFilter.setOptions(cuisineOptions);
+                cuisineFilter.selectedValues = previousSelection;
+                filterState.cuisine = previousSelection;
+                cuisineFilter.updateText();
+            }
         }
 
         function getFilteredRestaurants() {
             let filtered = restaurants;
-            if (countyFilter.value) filtered = filtered.filter(r => r.county === countyFilter.value);
-            if (areaFilter.value) filtered = filtered.filter(r => r.area === areaFilter.value);
-            if (cuisineFilter.value) filtered = filtered.filter(r => r.cuisine === cuisineFilter.value);
-            if (priceFilter.value) filtered = filtered.filter(r => r.price === priceFilter.value);
+            if (filterState.county.length > 0) {
+                filtered = filtered.filter(r => filterState.county.includes(r.county));
+            }
+            if (filterState.area.length > 0) {
+                filtered = filtered.filter(r => filterState.area.includes(r.area));
+            }
+            if (filterState.cuisine.length > 0) {
+                filtered = filtered.filter(r => filterState.cuisine.includes(r.cuisine));
+            }
+            if (filterState.price.length > 0) {
+                filtered = filtered.filter(r => filterState.price.includes(r.price));
+            }
             return filtered;
         }
 
@@ -724,23 +1020,19 @@
         }
 
         async function randomize() {
-            const params = new URLSearchParams();
-            if (countyFilter.value) params.append('county', countyFilter.value);
-            if (areaFilter.value) params.append('area', areaFilter.value);
-            if (cuisineFilter.value) params.append('cuisine', cuisineFilter.value);
-            if (priceFilter.value) params.append('price', priceFilter.value);
+            const filtered = getFilteredRestaurants();
+
+            if (filtered.length === 0) {
+                showToast('No restaurants match your filters', 'error');
+                return;
+            }
 
             randomizeBtn.classList.add('spinning');
             randomizeBtn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE}/api/restaurants/random?${params}`);
-                
-                if (!res.ok) {
-                    throw new Error('No restaurants match your filters');
-                }
-
-                const restaurant = await res.json();
+                // Pick random from filtered list
+                const restaurant = filtered[Math.floor(Math.random() * filtered.length)];
                 showResult(restaurant);
             } catch (error) {
                 showToast(error.message, 'error');
@@ -787,11 +1079,17 @@
             currentPhotos = [];
 
             try {
+                console.log('Fetching photos for:', query);
                 const res = await fetch(`${API_BASE}/api/places/search?query=${encodeURIComponent(query)}`);
-                
-                if (!res.ok) throw new Error('Place not found');
-                
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    console.error('Places API error:', error);
+                    throw new Error('Place not found');
+                }
+
                 const place = await res.json();
+                console.log('Place data:', place);
 
                 // Show rating if available
                 if (place.rating) {
@@ -806,20 +1104,39 @@
                 }
 
                 if (!place.photos || place.photos.length === 0) {
+                    console.warn('No photos available for this place');
                     throw new Error('No photos');
                 }
 
+                console.log('Found', place.photos.length, 'photos');
+
                 // Get up to 5 photos (1 large + 4 small)
                 const photos = place.photos.slice(0, 5);
-                
+
                 // Fetch photo URLs
                 const photoPromises = photos.map(async (photo) => {
-                    const photoRes = await fetch(`${API_BASE}/api/places/photo?photoName=${encodeURIComponent(photo.name)}&maxWidth=800&maxHeight=600`);
-                    const data = await photoRes.json();
-                    return data.url;
+                    try {
+                        const photoRes = await fetch(`${API_BASE}/api/places/photo?photoName=${encodeURIComponent(photo.name)}&maxWidth=800&maxHeight=600`);
+                        if (!photoRes.ok) {
+                            console.error('Failed to fetch photo:', photo.name);
+                            return null;
+                        }
+                        const data = await photoRes.json();
+                        return data.url;
+                    } catch (err) {
+                        console.error('Photo fetch error:', err);
+                        return null;
+                    }
                 });
 
-                currentPhotos = await Promise.all(photoPromises);
+                const photoUrls = await Promise.all(photoPromises);
+                currentPhotos = photoUrls.filter(url => url !== null);
+
+                if (currentPhotos.length === 0) {
+                    throw new Error('Failed to load photos');
+                }
+
+                console.log('Loaded', currentPhotos.length, 'photo URLs');
 
                 // Build grid
                 photoLoading.style.display = 'none';
@@ -830,7 +1147,11 @@
                     const mainImg = document.createElement('img');
                     mainImg.src = currentPhotos[0];
                     mainImg.className = 'photo-item';
+                    mainImg.alt = 'Restaurant photo';
                     mainImg.onclick = () => openLightbox(0);
+                    mainImg.onerror = () => {
+                        console.error('Failed to load main image:', currentPhotos[0]);
+                    };
                     photoGrid.appendChild(mainImg);
                 }
 
@@ -838,15 +1159,19 @@
                 if (currentPhotos.length > 1) {
                     const rightGrid = document.createElement('div');
                     rightGrid.className = 'photo-grid-right';
-                    
+
                     for (let i = 1; i < Math.min(5, currentPhotos.length); i++) {
                         const img = document.createElement('img');
                         img.src = currentPhotos[i];
                         img.className = 'photo-item';
+                        img.alt = 'Restaurant photo';
                         img.onclick = () => openLightbox(i);
+                        img.onerror = () => {
+                            console.error('Failed to load image:', currentPhotos[i]);
+                        };
                         rightGrid.appendChild(img);
                     }
-                    
+
                     photoGrid.appendChild(rightGrid);
                 }
 
@@ -888,18 +1213,104 @@
             document.getElementById('restaurantCuisine').value = '';
         }
 
-        function parseGoogleMapsLink() {
-            const link = document.getElementById('googleMapsLink').value;
+        async function parseGoogleMapsLink() {
+            const link = document.getElementById('googleMapsLink').value.trim();
             if (!link) {
                 showToast('Please paste a Google Maps link', 'error');
                 return;
             }
-            const placeMatch = link.match(/\/place\/([^\/]+)/);
-            if (placeMatch) {
-                document.getElementById('restaurantName').value = decodeURIComponent(placeMatch[1].replace(/\+/g, ' ')).split('@')[0].trim();
-                showToast('Name extracted! Fill in the rest.', 'success');
-            } else {
-                showToast('Could not extract name', 'error');
+
+            // Disable button while processing
+            const btn = document.getElementById('parseGoogleLink');
+            btn.disabled = true;
+            btn.textContent = 'Extracting...';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/places/parse-link`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Failed to extract info');
+                }
+
+                const data = await res.json();
+
+                // Fill in the form fields
+                document.getElementById('restaurantName').value = data.name || '';
+
+                // Extract area/city from address
+                if (data.address) {
+                    const addressParts = data.address.split(',');
+                    if (addressParts.length >= 2) {
+                        // Try to extract city/area from address
+                        const area = addressParts[addressParts.length - 3]?.trim() || addressParts[0]?.trim() || '';
+                        document.getElementById('restaurantArea').value = area;
+
+                        // Detect county from address
+                        const fullAddress = data.address.toLowerCase();
+                        if (fullAddress.includes('los angeles') || fullAddress.includes('la,')) {
+                            document.getElementById('restaurantCounty').value = 'LA';
+                        } else if (fullAddress.includes('orange') || fullAddress.includes('irvine') || fullAddress.includes('tustin')) {
+                            document.getElementById('restaurantCounty').value = 'OC';
+                        } else if (fullAddress.includes('vancouver') || fullAddress.includes('bc')) {
+                            document.getElementById('restaurantCounty').value = 'VAN';
+                        }
+                    }
+                }
+
+                // Determine cuisine from types
+                if (data.types && data.types.length > 0) {
+                    const cuisineMap = {
+                        'chinese_restaurant': 'Chinese',
+                        'japanese_restaurant': 'Japanese',
+                        'korean_restaurant': 'Korean',
+                        'italian_restaurant': 'Western',
+                        'french_restaurant': 'Western',
+                        'mexican_restaurant': 'Mexican',
+                        'thai_restaurant': 'Thai',
+                        'vietnamese_restaurant': 'Vietnamese',
+                        'indian_restaurant': 'SEA',
+                        'american_restaurant': 'Western',
+                        'seafood_restaurant': 'Western',
+                        'sushi_restaurant': 'Japanese',
+                        'ramen_restaurant': 'Japanese',
+                        'pizza_restaurant': 'Western',
+                        'steak_house': 'Western',
+                        'breakfast_restaurant': 'Brunch',
+                        'brunch_restaurant': 'Brunch'
+                    };
+
+                    for (const type of data.types) {
+                        if (cuisineMap[type]) {
+                            document.getElementById('restaurantCuisine').value = cuisineMap[type];
+                            break;
+                        }
+                    }
+                }
+
+                // Map price level to price
+                const priceLevelMap = {
+                    'PRICE_LEVEL_FREE': '$',
+                    'PRICE_LEVEL_INEXPENSIVE': '$',
+                    'PRICE_LEVEL_MODERATE': '$$',
+                    'PRICE_LEVEL_EXPENSIVE': '$$$',
+                    'PRICE_LEVEL_VERY_EXPENSIVE': '$$$$'
+                };
+                if (data.priceLevel && priceLevelMap[data.priceLevel]) {
+                    document.getElementById('restaurantPrice').value = priceLevelMap[data.priceLevel];
+                }
+
+                showToast('Restaurant info extracted! Please review and adjust.', 'success');
+            } catch (error) {
+                console.error('Parse error:', error);
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Extract Info';
             }
         }
 

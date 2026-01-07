@@ -460,6 +460,98 @@ app.delete('/api/restaurants/:id', (req, res) => {
 
 // ============ GOOGLE PLACES API PROXY ============
 
+// Parse Google Maps link and extract restaurant details
+app.post('/api/places/parse-link', async (req, res) => {
+  try {
+    const { link } = req.body;
+
+    if (!link) {
+      return res.status(400).json({ error: 'Link is required' });
+    }
+
+    // Extract place ID or name from various Google Maps URL formats
+    let placeId = null;
+    let placeName = null;
+
+    // Format 1: /place/Name/data=...!1s<PLACE_ID>
+    const placeIdMatch = link.match(/!1s([^!]+)/);
+    if (placeIdMatch) {
+      placeId = placeIdMatch[1];
+    }
+
+    // Format 2: /place/Name/@lat,lng
+    if (!placeId) {
+      const nameMatch = link.match(/\/place\/([^/@?]+)/);
+      if (nameMatch) {
+        placeName = decodeURIComponent(nameMatch[1].replace(/\+/g, ' '));
+      }
+    }
+
+    if (!placeId && !placeName) {
+      return res.status(400).json({ error: 'Could not extract place information from link' });
+    }
+
+    // Search for the place using Places API
+    let searchQuery;
+    if (placeId) {
+      // Use place ID to get details
+      const response = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+        headers: {
+          'X-Goog-Api-Key': GOOGLE_API_KEY,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,priceLevel,rating'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch place details');
+      }
+
+      const place = await response.json();
+      return res.json({
+        name: place.displayName?.text || '',
+        address: place.formattedAddress || '',
+        priceLevel: place.priceLevel || 'PRICE_LEVEL_MODERATE',
+        types: place.types || []
+      });
+    } else {
+      // Use text search with place name
+      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_API_KEY,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.priceLevel,places.rating'
+        },
+        body: JSON.stringify({
+          textQuery: placeName,
+          maxResultCount: 1
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to search for place');
+      }
+
+      const data = await response.json();
+
+      if (!data.places || data.places.length === 0) {
+        return res.status(404).json({ error: 'Place not found' });
+      }
+
+      const place = data.places[0];
+      return res.json({
+        name: place.displayName?.text || '',
+        address: place.formattedAddress || '',
+        priceLevel: place.priceLevel || 'PRICE_LEVEL_MODERATE',
+        types: place.types || []
+      });
+    }
+  } catch (error) {
+    console.error('Parse link error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Search for a place and get its details including photos
 app.get('/api/places/search', async (req, res) => {
   try {
@@ -506,21 +598,16 @@ app.get('/api/places/search', async (req, res) => {
 app.get('/api/places/photo', async (req, res) => {
   try {
     const { photoName, maxWidth = 800, maxHeight = 600 } = req.query;
-    
+
     if (!photoName) {
       return res.status(400).json({ error: 'Photo name is required' });
     }
 
+    // Construct the photo URL - this URL can be used directly in img src
     const photoUrl = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&key=${GOOGLE_API_KEY}`;
-    
-    const response = await fetch(photoUrl);
-    
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Failed to fetch photo' });
-    }
 
-    // Get the final URL after redirects
-    res.json({ url: response.url });
+    // Return the URL directly - the browser will handle the authentication via the API key in the URL
+    res.json({ url: photoUrl });
   } catch (error) {
     console.error('Photo fetch error:', error);
     res.status(500).json({ error: error.message });
