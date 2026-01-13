@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server';
 import { initializeDatabase } from '@/lib/db';
 
+// GET /api/db/init - Initialize database tables (browser accessible)
+export async function GET() {
+  try {
+    await initializeDatabase();
+    return NextResponse.json({ success: true, message: 'Database initialized successfully' });
+  } catch (error) {
+    console.error('Database initialization error:', error);
+    return NextResponse.json(
+      { error: 'Failed to initialize database' },
+      { status: 500 }
+    );
+  }
+}
+
 // POST /api/db/init - Initialize database tables
 export async function POST() {
   try {
