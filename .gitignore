@@ -1,4 +1,46 @@
+# Dependencies
 node_modules/
-*.db
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+build/
+
+# Environment files
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database (old SQLite - now using Vercel Postgres)
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+*.log
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
