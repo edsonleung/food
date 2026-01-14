@@ -289,7 +289,7 @@ function extractRestaurantNames(text: string): string[] {
   return Array.from(new Set(restaurants));
 }
 
-// Parse Instagram link to extract restaurant info using oEmbed
+// Parse Instagram link to extract restaurant info
 export async function parseInstagramLink(link: string): Promise<{
   name: string;
   caption: string;
@@ -307,23 +307,63 @@ export async function parseInstagramLink(link: string): Promise<{
       cleanUrl += '/';
     }
 
-    // Use Instagram's oEmbed API to get post info
-    const oEmbedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
+    let caption = '';
 
-    const response = await fetch(oEmbedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; BonAppePick/1.0)',
-      },
-    });
+    // Method 1: Try oEmbed API first
+    try {
+      const oEmbedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
+      const oEmbedResponse = await fetch(oEmbedUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
 
-    if (!response.ok) {
-      console.error('Instagram oEmbed failed:', response.status);
-      return null;
+      if (oEmbedResponse.ok) {
+        const data = await oEmbedResponse.json();
+        caption = data.title || '';
+      }
+    } catch (e) {
+      console.log('oEmbed failed, trying HTML fetch');
     }
 
-    const data = await response.json();
-    const caption = data.title || '';
-    const authorName = data.author_name || '';
+    // Method 2: Try fetching the page HTML for Open Graph tags
+    if (!caption) {
+      try {
+        const htmlResponse = await fetch(cleanUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml',
+          },
+        });
+
+        if (htmlResponse.ok) {
+          const html = await htmlResponse.text();
+
+          // Try to extract og:description or og:title
+          const ogDescMatch = html.match(/<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']/i);
+          const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i);
+          const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+
+          // Also try reversed attribute order
+          const ogDescMatch2 = html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:description["']/i);
+          const ogTitleMatch2 = html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:title["']/i);
+
+          caption = ogDescMatch?.[1] || ogDescMatch2?.[1] || ogTitleMatch?.[1] || ogTitleMatch2?.[1] || descMatch?.[1] || '';
+
+          // Decode HTML entities
+          caption = caption
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&#x27;/g, "'")
+            .replace(/&#x2F;/g, '/');
+        }
+      } catch (e) {
+        console.log('HTML fetch failed:', e);
+      }
+    }
 
     // Extract potential restaurant names from caption
     const extractedRestaurants = extractRestaurantNames(caption);
