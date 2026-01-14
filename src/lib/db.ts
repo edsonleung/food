@@ -174,10 +174,11 @@ export async function getAreasByCounties(counties: string[]) {
     const { rows } = await sql<{ area: string }>`SELECT DISTINCT area FROM restaurants ORDER BY area`;
     return rows.map(r => r.area);
   }
-  const { rows } = await sql<{ area: string }>`
-    SELECT DISTINCT area FROM restaurants WHERE county = ANY(${counties}) ORDER BY area
-  `;
-  return rows.map(r => r.area);
+  const { rows } = await sql.query(
+    'SELECT DISTINCT area FROM restaurants WHERE county = ANY($1) ORDER BY area',
+    [counties]
+  );
+  return (rows as { area: string }[]).map(r => r.area);
 }
 
 // Get cuisines by counties and areas
