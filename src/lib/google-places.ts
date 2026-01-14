@@ -242,7 +242,11 @@ export async function parseTikTokLink(link: string): Promise<{
   }
 }
 
-// Helper function used by both TikTok and Instagram
+// Helper function used by both TikTok and Instagram - exported for direct use
+export function extractRestaurantNamesFromText(text: string): string[] {
+  return extractRestaurantNames(text);
+}
+
 function extractRestaurantNames(text: string): string[] {
   const restaurants: string[] = [];
 

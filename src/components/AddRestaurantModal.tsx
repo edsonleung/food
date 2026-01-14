@@ -17,6 +17,8 @@ interface AddRestaurantModalProps {
 
 export default function AddRestaurantModal({ onClose, onAdd }: AddRestaurantModalProps) {
   const [googleMapsLink, setGoogleMapsLink] = useState('');
+  const [caption, setCaption] = useState('');
+  const [showCaptionInput, setShowCaptionInput] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [name, setName] = useState('');
   const [county, setCounty] = useState('LA');
@@ -24,6 +26,8 @@ export default function AddRestaurantModal({ onClose, onAdd }: AddRestaurantModa
   const [cuisine, setCuisine] = useState('');
   const [price, setPrice] = useState('$$');
   const [extractMessage, setExtractMessage] = useState('');
+
+  const isInstagramOrTikTok = googleMapsLink.includes('instagram.com') || googleMapsLink.includes('tiktok.com');
 
   const handleParseLink = async () => {
     if (!googleMapsLink) return;
@@ -35,7 +39,7 @@ export default function AddRestaurantModal({ onClose, onAdd }: AddRestaurantModa
       const response = await fetch('/api/places/parse-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link: googleMapsLink }),
+        body: JSON.stringify({ link: googleMapsLink, caption: caption || undefined }),
       });
 
       const data = await response.json();
@@ -44,9 +48,19 @@ export default function AddRestaurantModal({ onClose, onAdd }: AddRestaurantModa
         throw new Error(data.error || 'Failed to extract info');
       }
 
+      // Check if we need caption input
+      if (data.needsCaption) {
+        setShowCaptionInput(true);
+        setExtractMessage('Please paste the caption/description from the post below:');
+        return;
+      }
+
       if (data.requiresManualEntry) {
         setExtractMessage(data.message || 'Please enter restaurant details manually.');
         if (data.name) setName(data.name);
+        if (data.extractedRestaurants && data.extractedRestaurants.length > 0) {
+          setExtractMessage(`Found: ${data.extractedRestaurants.join(', ')}. Please verify and complete details.`);
+        }
         return;
       }
 
@@ -56,6 +70,7 @@ export default function AddRestaurantModal({ onClose, onAdd }: AddRestaurantModa
       if (data.area) setArea(data.area);
       if (data.cuisine) setCuisine(data.cuisine);
       if (data.price) setPrice(data.price);
+      setShowCaptionInput(false);
 
       setExtractMessage('Restaurant info extracted! Please review and adjust if needed.');
     } catch (error) {
@@ -103,6 +118,15 @@ export default function AddRestaurantModal({ onClose, onAdd }: AddRestaurantModa
               value={googleMapsLink}
               onChange={(e) => setGoogleMapsLink(e.target.value)}
             />
+            {(showCaptionInput || isInstagramOrTikTok) && (
+              <textarea
+                className="form-input mt-3"
+                placeholder="Paste the caption/description from the Instagram/TikTok post here..."
+                rows={4}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+              />
+            )}
             <button
               className="btn btn-secondary w-full mt-3"
               onClick={handleParseLink}
