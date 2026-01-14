@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseGoogleMapsLink, parseTikTokLink, parseInstagramLink, mapGoogleTypeToCuisine, mapPriceLevel } from '@/lib/google-places';
+import { parseGoogleMapsLink, parseTikTokLink, parseInstagramLink, searchPlace, mapGoogleTypeToCuisine, mapPriceLevel } from '@/lib/google-places';
 
 // POST /api/places/parse-link - Parse a link (Google Maps, TikTok, Instagram)
 export async function POST(request: NextRequest) {
@@ -74,20 +74,72 @@ export async function POST(request: NextRequest) {
       linkType = 'tiktok';
       const tiktokResult = await parseTikTokLink(link);
 
-      if (tiktokResult) {
+      if (tiktokResult && tiktokResult.extractedRestaurants.length > 0) {
+        // Try to search Google Places for the extracted restaurants
+        for (const restaurantName of tiktokResult.extractedRestaurants.slice(0, 3)) {
+          try {
+            const place = await searchPlace(restaurantName + ' restaurant');
+
+            if (place && place.displayName?.text) {
+              const cuisine = mapGoogleTypeToCuisine(place.types || []);
+              const price = mapPriceLevel(place.priceLevel || 'PRICE_LEVEL_MODERATE');
+
+              let area = '';
+              let county = 'LA';
+              const address = place.formattedAddress || '';
+
+              if (address) {
+                const addressLower = address.toLowerCase();
+                const addressParts = address.split(',');
+
+                if (addressLower.includes('vancouver') || addressLower.includes(', bc')) {
+                  county = 'VAN';
+                } else if (addressLower.includes('irvine') || addressLower.includes('tustin') || addressLower.includes('costa mesa') || addressLower.includes('orange county')) {
+                  county = 'OC';
+                }
+
+                if (addressParts.length >= 3) {
+                  area = addressParts[addressParts.length - 3]?.trim() || addressParts[1]?.trim() || '';
+                } else if (addressParts.length >= 2) {
+                  area = addressParts[1]?.trim() || '';
+                }
+              }
+
+              return NextResponse.json({
+                source: 'tiktok',
+                name: place.displayName.text,
+                address,
+                area,
+                county,
+                cuisine,
+                price,
+                priceLevel: place.priceLevel,
+                types: place.types,
+                placeId: place.id,
+                tiktokDescription: tiktokResult.description,
+                extractedFrom: restaurantName,
+              });
+            }
+          } catch (e) {
+            console.log('Failed to find restaurant:', restaurantName);
+          }
+        }
+
+        // If no Google match found, return extracted info for manual entry
         return NextResponse.json({
           source: linkType,
           name: tiktokResult.name,
           description: tiktokResult.description,
-          // TikTok doesn't provide structured data, so user will need to fill in details
+          extractedRestaurants: tiktokResult.extractedRestaurants,
           requiresManualEntry: true,
+          message: 'Found potential restaurants in video title. Please verify and complete details.',
         });
       }
 
-      // Return partial response indicating manual entry needed
       return NextResponse.json({
         source: linkType,
-        message: 'TikTok link detected. Please enter restaurant details manually.',
+        description: tiktokResult?.description || '',
+        message: 'TikTok link detected but no restaurant found. Please enter details manually.',
         requiresManualEntry: true,
       });
     }
@@ -97,18 +149,74 @@ export async function POST(request: NextRequest) {
       linkType = 'instagram';
       const igResult = await parseInstagramLink(link);
 
-      if (igResult) {
+      if (igResult && igResult.extractedRestaurants.length > 0) {
+        // Try to search Google Places for the extracted restaurants
+        for (const restaurantName of igResult.extractedRestaurants.slice(0, 3)) {
+          try {
+            const place = await searchPlace(restaurantName + ' restaurant');
+
+            if (place && place.displayName?.text) {
+              const cuisine = mapGoogleTypeToCuisine(place.types || []);
+              const price = mapPriceLevel(place.priceLevel || 'PRICE_LEVEL_MODERATE');
+
+              // Extract area from address
+              let area = '';
+              let county = 'LA';
+              const address = place.formattedAddress || '';
+
+              if (address) {
+                const addressLower = address.toLowerCase();
+                const addressParts = address.split(',');
+
+                if (addressLower.includes('vancouver') || addressLower.includes(', bc')) {
+                  county = 'VAN';
+                } else if (addressLower.includes('irvine') || addressLower.includes('tustin') || addressLower.includes('costa mesa') || addressLower.includes('orange county')) {
+                  county = 'OC';
+                }
+
+                if (addressParts.length >= 3) {
+                  area = addressParts[addressParts.length - 3]?.trim() || addressParts[1]?.trim() || '';
+                } else if (addressParts.length >= 2) {
+                  area = addressParts[1]?.trim() || '';
+                }
+              }
+
+              return NextResponse.json({
+                source: 'instagram',
+                name: place.displayName.text,
+                address,
+                area,
+                county,
+                cuisine,
+                price,
+                priceLevel: place.priceLevel,
+                types: place.types,
+                placeId: place.id,
+                instagramCaption: igResult.caption,
+                extractedFrom: restaurantName,
+              });
+            }
+          } catch (e) {
+            // Continue trying other extracted names
+            console.log('Failed to find restaurant:', restaurantName);
+          }
+        }
+
+        // If no Google match found, return extracted info for manual entry
         return NextResponse.json({
           source: linkType,
           name: igResult.name,
           caption: igResult.caption,
+          extractedRestaurants: igResult.extractedRestaurants,
           requiresManualEntry: true,
+          message: 'Found potential restaurants in caption. Please verify and complete details.',
         });
       }
 
       return NextResponse.json({
         source: linkType,
-        message: 'Instagram link detected. Please enter restaurant details manually.',
+        caption: igResult?.caption || '',
+        message: 'Instagram link detected but no restaurant found in caption. Please enter details manually.',
         requiresManualEntry: true,
       });
     }

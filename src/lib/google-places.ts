@@ -198,39 +198,130 @@ export async function parseGoogleMapsLink(link: string): Promise<{
   }
 }
 
-// Parse TikTok link to extract restaurant name
-export async function parseTikTokLink(link: string): Promise<{ name: string; description: string } | null> {
-  // TikTok links typically need to be processed differently
-  // We'll try to extract any restaurant name from the link structure
-
+// Parse TikTok link to extract restaurant name using oEmbed
+export async function parseTikTokLink(link: string): Promise<{
+  name: string;
+  description: string;
+  extractedRestaurants: string[];
+} | null> {
   try {
     // Check if it's a TikTok link
     if (!link.includes('tiktok.com')) {
       return null;
     }
 
-    // For now, return null as TikTok requires more complex scraping
-    // In production, you'd use TikTok's API or a scraping service
-    console.log('TikTok link parsing not fully implemented:', link);
-    return null;
+    // Use TikTok's oEmbed API
+    const oEmbedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(link)}`;
+
+    const response = await fetch(oEmbedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; BonAppePick/1.0)',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('TikTok oEmbed failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const title = data.title || '';
+    const authorName = data.author_name || '';
+
+    // Extract potential restaurant names from title
+    const extractedRestaurants = extractRestaurantNames(title);
+
+    return {
+      name: extractedRestaurants[0] || '',
+      description: title,
+      extractedRestaurants,
+    };
   } catch (error) {
     console.error('Error parsing TikTok link:', error);
     return null;
   }
 }
 
-// Parse Instagram link to extract restaurant info
-export async function parseInstagramLink(link: string): Promise<{ name: string; caption: string } | null> {
+// Helper function used by both TikTok and Instagram
+function extractRestaurantNames(text: string): string[] {
+  const restaurants: string[] = [];
+
+  // Common patterns for restaurant mentions
+  const patterns = [
+    // @mentions that might be restaurants
+    /@([a-zA-Z0-9_.]+)/g,
+    // "at Restaurant Name" pattern
+    /\bat\s+([A-Z][a-zA-Z0-9\s&']+?)(?:\s*[,.|!?\n]|$)/g,
+    // "📍 Location" pattern
+    /📍\s*([^,\n]+)/g,
+    // Restaurant names in quotes
+    /"([^"]+)"/g,
+    // Names followed by common food words
+    /([A-Z][a-zA-Z\s&']+?)\s+(?:restaurant|cafe|bistro|kitchen|eatery|bar|grill|house)/gi,
+  ];
+
+  for (const pattern of patterns) {
+    const matches = text.matchAll(pattern);
+    for (const match of matches) {
+      const name = match[1]?.trim();
+      if (name && name.length > 2 && name.length < 50) {
+        // Filter out common non-restaurant words
+        const skipWords = ['the', 'and', 'for', 'with', 'this', 'that', 'food', 'best', 'love', 'amazing'];
+        if (!skipWords.includes(name.toLowerCase())) {
+          restaurants.push(name);
+        }
+      }
+    }
+  }
+
+  // Deduplicate
+  return Array.from(new Set(restaurants));
+}
+
+// Parse Instagram link to extract restaurant info using oEmbed
+export async function parseInstagramLink(link: string): Promise<{
+  name: string;
+  caption: string;
+  extractedRestaurants: string[];
+} | null> {
   try {
     // Check if it's an Instagram link
     if (!link.includes('instagram.com')) {
       return null;
     }
 
-    // For now, return null as Instagram requires OAuth
-    // In production, you'd use Instagram's Basic Display API
-    console.log('Instagram link parsing not fully implemented:', link);
-    return null;
+    // Clean up the URL (remove tracking params)
+    let cleanUrl = link.split('?')[0];
+    if (!cleanUrl.endsWith('/')) {
+      cleanUrl += '/';
+    }
+
+    // Use Instagram's oEmbed API to get post info
+    const oEmbedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
+
+    const response = await fetch(oEmbedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; BonAppePick/1.0)',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Instagram oEmbed failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const caption = data.title || '';
+    const authorName = data.author_name || '';
+
+    // Extract potential restaurant names from caption
+    const extractedRestaurants = extractRestaurantNames(caption);
+
+    return {
+      name: extractedRestaurants[0] || '',
+      caption,
+      extractedRestaurants,
+    };
   } catch (error) {
     console.error('Error parsing Instagram link:', error);
     return null;
