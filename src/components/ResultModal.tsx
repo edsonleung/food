@@ -77,20 +77,11 @@ export default function ResultModal({ restaurant, onClose, onTryAgain }: ResultM
         }
 
         if (place.photos && place.photos.length > 0) {
-          const photoUrls = await Promise.all(
-            place.photos.slice(0, 5).map(async (photo: { name: string }) => {
-              const photoResponse = await fetch(
-                `/api/places/photo?photoName=${encodeURIComponent(photo.name)}&maxWidth=800&maxHeight=600`
-              );
-              if (photoResponse.ok) {
-                const data = await photoResponse.json();
-                return data.url;
-              }
-              return null;
-            })
+          // Use the photo proxy endpoint directly as image source
+          const photoUrls = place.photos.slice(0, 5).map((photo: { name: string }) =>
+            `/api/places/photo?photoName=${encodeURIComponent(photo.name)}&maxWidth=800&maxHeight=600`
           );
-
-          setPhotos(photoUrls.filter((url): url is string => url !== null));
+          setPhotos(photoUrls);
         }
       } catch (error) {
         console.error('Error fetching photos:', error);
