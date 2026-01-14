@@ -54,7 +54,7 @@ export default function Home() {
       filtered = filtered.filter((r) => selectedCounties.includes(r.county));
     }
 
-    const areas = [...new Set(filtered.map((r) => r.area))].sort();
+    const areas = Array.from(new Set(filtered.map((r) => r.area))).sort();
     setAreaOptions(areas.map((a) => ({ value: a, label: a })));
 
     // Clear invalid area selections
@@ -71,7 +71,7 @@ export default function Home() {
       filtered = filtered.filter((r) => selectedAreas.includes(r.area));
     }
 
-    const cuisines = [...new Set(filtered.map((r) => r.cuisine))].sort();
+    const cuisines = Array.from(new Set(filtered.map((r) => r.cuisine))).sort();
     setCuisineOptions(cuisines.map((c) => ({ value: c, label: c })));
 
     // Clear invalid cuisine selections
