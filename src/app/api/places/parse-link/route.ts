@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseGoogleMapsLink, parseTikTokLink, parseInstagramLink, searchPlace, mapGoogleTypeToCuisine, mapPriceLevel } from '@/lib/google-places';
+import { parseGoogleMapsLink, parseTikTokLink, parseInstagramLink, searchPlace, mapGoogleTypeToCuisine, mapPriceLevel, extractRestaurantNamesFromText } from '@/lib/google-places';
 
 // POST /api/places/parse-link - Parse a link (Google Maps, TikTok, Instagram)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { link } = body;
+    const { link, caption: manualCaption } = body;
 
     if (!link) {
       return NextResponse.json(
@@ -147,11 +147,26 @@ export async function POST(request: NextRequest) {
     // Try Instagram
     if (link.includes('instagram.com')) {
       linkType = 'instagram';
-      const igResult = await parseInstagramLink(link);
 
-      if (igResult && igResult.extractedRestaurants.length > 0) {
+      // Try oEmbed first, then fall back to manual caption
+      let caption = '';
+      let extractedRestaurants: string[] = [];
+
+      const igResult = await parseInstagramLink(link);
+      if (igResult && igResult.caption) {
+        caption = igResult.caption;
+        extractedRestaurants = igResult.extractedRestaurants;
+      }
+
+      // If manual caption provided, use it (overrides oEmbed)
+      if (manualCaption) {
+        caption = manualCaption;
+        extractedRestaurants = extractRestaurantNamesFromText(manualCaption);
+      }
+
+      if (extractedRestaurants.length > 0) {
         // Try to search Google Places for the extracted restaurants
-        for (const restaurantName of igResult.extractedRestaurants.slice(0, 3)) {
+        for (const restaurantName of extractedRestaurants.slice(0, 3)) {
           try {
             const place = await searchPlace(restaurantName + ' restaurant');
 
@@ -192,7 +207,7 @@ export async function POST(request: NextRequest) {
                 priceLevel: place.priceLevel,
                 types: place.types,
                 placeId: place.id,
-                instagramCaption: igResult.caption,
+                instagramCaption: caption,
                 extractedFrom: restaurantName,
               });
             }
@@ -205,19 +220,23 @@ export async function POST(request: NextRequest) {
         // If no Google match found, return extracted info for manual entry
         return NextResponse.json({
           source: linkType,
-          name: igResult.name,
-          caption: igResult.caption,
-          extractedRestaurants: igResult.extractedRestaurants,
+          name: extractedRestaurants[0] || '',
+          caption,
+          extractedRestaurants,
           requiresManualEntry: true,
           message: 'Found potential restaurants in caption. Please verify and complete details.',
         });
       }
 
+      // No restaurants found - ask user to paste caption
       return NextResponse.json({
         source: linkType,
-        caption: igResult?.caption || '',
-        message: 'Instagram link detected but no restaurant found in caption. Please enter details manually.',
+        caption: caption || '',
+        message: caption
+          ? 'Instagram link detected but no restaurant found in caption. Please enter details manually.'
+          : 'Could not fetch Instagram caption. Please paste the caption text and try again.',
         requiresManualEntry: true,
+        needsCaption: !caption,
       });
     }
 
