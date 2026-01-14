@@ -248,25 +248,32 @@ function extractRestaurantNames(text: string): string[] {
 
   // Common patterns for restaurant mentions
   const patterns = [
+    // Food emoji followed by name (🍵 Way Home Coffee, 🍜 Restaurant Name, etc.)
+    /[🍵☕🍜🍕🍔🍣🍱🍛🍝🍤🥘🥗🌮🌯🥡🍰🧁🍩]\s*([A-Za-z][A-Za-z0-9\s&'.-]+?)(?:\s*[-–—,.|!?\n]|$)/g,
+    // 📍 Location pattern
+    /📍\s*([^,\n-–—]+)/g,
+    // Name followed by dash and location (e.g., "Way Home Coffee - Sawtelle")
+    /^([A-Z][A-Za-z0-9\s&']+?)\s*[-–—]\s*[A-Z]/gm,
     // @mentions that might be restaurants
     /@([a-zA-Z0-9_.]+)/g,
     // "at Restaurant Name" pattern
     /\bat\s+([A-Z][a-zA-Z0-9\s&']+?)(?:\s*[,.|!?\n]|$)/g,
-    // "📍 Location" pattern
-    /📍\s*([^,\n]+)/g,
     // Restaurant names in quotes
     /"([^"]+)"/g,
-    // Names followed by common food words
-    /([A-Z][a-zA-Z\s&']+?)\s+(?:restaurant|cafe|bistro|kitchen|eatery|bar|grill|house)/gi,
+    // Names followed by common food/drink words
+    /([A-Z][a-zA-Z\s&']+?)\s+(?:restaurant|cafe|coffee|bistro|kitchen|eatery|bar|grill|house|diner|bakery|pizzeria|sushi|ramen|taqueria|boba|tea)/gi,
   ];
 
   for (const pattern of patterns) {
     const matches = text.matchAll(pattern);
     for (const match of matches) {
-      const name = match[1]?.trim();
+      let name = match[1]?.trim();
       if (name && name.length > 2 && name.length < 50) {
+        // Clean up the name
+        name = name.replace(/\s+/g, ' ').trim();
+
         // Filter out common non-restaurant words
-        const skipWords = ['the', 'and', 'for', 'with', 'this', 'that', 'food', 'best', 'love', 'amazing'];
+        const skipWords = ['the', 'and', 'for', 'with', 'this', 'that', 'food', 'best', 'love', 'amazing', 'new', 'just', 'our', 'try'];
         if (!skipWords.includes(name.toLowerCase())) {
           restaurants.push(name);
         }
