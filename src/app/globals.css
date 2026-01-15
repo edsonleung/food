@@ -962,6 +962,11 @@ body {
   border-color: var(--desert-sun);
 }
 
+.photo-upload-area.processing {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .photo-preview {
   max-width: 200px;
   max-height: 200px;
