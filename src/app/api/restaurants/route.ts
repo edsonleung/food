@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllRestaurants, addRestaurant, getFilteredRestaurants } from '@/lib/db';
+import { getAllRestaurants, addRestaurant, getFilteredRestaurantsWithFavorites, checkRestaurantExists } from '@/lib/db';
 
 // GET /api/restaurants - Get all restaurants or filtered
 export async function GET(request: NextRequest) {
@@ -9,11 +9,12 @@ export async function GET(request: NextRequest) {
     const areas = searchParams.get('areas')?.split(',').filter(Boolean) || [];
     const cuisines = searchParams.get('cuisines')?.split(',').filter(Boolean) || [];
     const prices = searchParams.get('prices')?.split(',').filter(Boolean) || [];
+    const favoritesOnly = searchParams.get('favoritesOnly') === 'true';
 
-    const hasFilters = counties.length > 0 || areas.length > 0 || cuisines.length > 0 || prices.length > 0;
+    const hasFilters = counties.length > 0 || areas.length > 0 || cuisines.length > 0 || prices.length > 0 || favoritesOnly;
 
     const restaurants = hasFilters
-      ? await getFilteredRestaurants({ counties, areas, cuisines, prices })
+      ? await getFilteredRestaurantsWithFavorites({ counties, areas, cuisines, prices, favoritesOnly })
       : await getAllRestaurants();
 
     return NextResponse.json(restaurants);
@@ -36,6 +37,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: name, county, area, cuisine' },
         { status: 400 }
+      );
+    }
+
+    // Check for duplicate
+    const existing = await checkRestaurantExists(name, county);
+    if (existing) {
+      return NextResponse.json(
+        { error: 'duplicate', message: `"${existing.name}" already exists in ${county}!`, existing },
+        { status: 409 }
       );
     }
 

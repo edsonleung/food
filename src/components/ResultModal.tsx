@@ -17,9 +17,10 @@ interface ResultModalProps {
   restaurant: Restaurant;
   onClose: () => void;
   onTryAgain: () => void;
+  onToggleFavorite?: (id: number) => void;
 }
 
-export default function ResultModal({ restaurant, onClose, onTryAgain }: ResultModalProps) {
+export default function ResultModal({ restaurant, onClose, onTryAgain, onToggleFavorite }: ResultModalProps) {
   const [photos, setPhotos] = useState<string[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
   const [rating, setRating] = useState<number | undefined>();
@@ -149,6 +150,17 @@ export default function ResultModal({ restaurant, onClose, onTryAgain }: ResultM
           <button className="modal-close-btn" onClick={onClose}>
             &times;
           </button>
+
+          {/* Favorite Button */}
+          {onToggleFavorite && (
+            <button
+              className="favorite-btn"
+              onClick={() => onToggleFavorite(restaurant.id)}
+              title={restaurant.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              {restaurant.is_favorite ? '★' : '☆'}
+            </button>
+          )}
 
           <PhotoGrid
             photos={photos}
