@@ -17,6 +17,7 @@ export default function Home() {
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   // Filter options
   const [areaOptions, setAreaOptions] = useState<{ value: string; label: string }[]>([]);
@@ -81,6 +82,9 @@ export default function Home() {
   // Get filtered restaurants
   const getFilteredRestaurants = useCallback(() => {
     let filtered = restaurants;
+    if (favoritesOnly) {
+      filtered = filtered.filter((r) => r.is_favorite);
+    }
     if (selectedCounties.length > 0) {
       filtered = filtered.filter((r) => selectedCounties.includes(r.county));
     }
@@ -94,7 +98,7 @@ export default function Home() {
       filtered = filtered.filter((r) => selectedPrices.includes(r.price));
     }
     return filtered;
-  }, [restaurants, selectedCounties, selectedAreas, selectedCuisines, selectedPrices]);
+  }, [restaurants, selectedCounties, selectedAreas, selectedCuisines, selectedPrices, favoritesOnly]);
 
   const handleRandomize = () => {
     const filtered = getFilteredRestaurants();
@@ -128,17 +132,44 @@ export default function Home() {
         body: JSON.stringify(restaurant),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to add restaurant');
+        // Handle duplicate restaurant error
+        if (data.error === 'duplicate') {
+          setToast({ message: data.message, type: 'error' });
+          return;
+        }
+        throw new Error(data.error || 'Failed to add restaurant');
       }
 
-      const newRestaurant = await response.json();
-      setRestaurants((prev) => [...prev, newRestaurant]);
+      setRestaurants((prev) => [...prev, data]);
       setShowAddModal(false);
       setToast({ message: `${restaurant.name} added!`, type: 'success' });
     } catch (error) {
       console.error('Error adding restaurant:', error);
       setToast({ message: 'Failed to add restaurant', type: 'error' });
+    }
+  };
+
+  // Handle favorite toggle from ResultModal
+  const handleToggleFavorite = async (restaurantId: number) => {
+    try {
+      const response = await fetch(`/api/restaurants/${restaurantId}/favorite`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setRestaurants((prev) =>
+          prev.map((r) => (r.id === restaurantId ? updated : r))
+        );
+        if (selectedRestaurant?.id === restaurantId) {
+          setSelectedRestaurant(updated);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
     }
   };
 
@@ -208,6 +239,19 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Favorites Toggle */}
+        <div className="flex items-center gap-2 mb-4">
+          <label className="favorites-toggle">
+            <input
+              type="checkbox"
+              checked={favoritesOnly}
+              onChange={(e) => setFavoritesOnly(e.target.checked)}
+            />
+            <span className="star-icon">{favoritesOnly ? '★' : '☆'}</span>
+            <span>Favorites Only</span>
+          </label>
+        </div>
+
         {/* Actions Row */}
         <div className="flex gap-4 items-center flex-wrap">
           <button
@@ -228,11 +272,19 @@ export default function Home() {
               <div className="stat-value">{filteredCount}</div>
               <div className="stat-label">Matching</div>
             </div>
+            <div className="text-center">
+              <div className="stat-value">{restaurants.filter(r => r.is_favorite).length}</div>
+              <div className="stat-label">Favorites</div>
+            </div>
           </div>
 
           <button className="add-restaurant-btn" onClick={() => setShowAddModal(true)}>
             <span>&#10133;</span> Add
           </button>
+
+          <a href="/diary" className="add-restaurant-btn" style={{ textDecoration: 'none' }}>
+            <span>&#128247;</span> Food Diary
+          </a>
         </div>
       </div>
 
@@ -252,6 +304,7 @@ export default function Home() {
             setSelectedRestaurant(null);
             setTimeout(handleRandomize, 300);
           }}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
 

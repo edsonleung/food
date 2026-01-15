@@ -9,6 +9,7 @@ export interface Restaurant {
   price: string;
   place_id: string | null;
   google_maps_url: string | null;
+  is_favorite: boolean;
   created_at: Date;
 }
 
@@ -20,6 +21,16 @@ export interface Review {
   rating: number;
   text: string;
   date: string;
+  created_at: Date;
+}
+
+export interface DiaryEntry {
+  id: number;
+  restaurant_id: number;
+  restaurant_name: string;
+  photo_url: string;
+  comment: string;
+  visit_date: string;
   created_at: Date;
 }
 
@@ -37,8 +48,14 @@ export async function initializeDatabase() {
         price TEXT DEFAULT '$$',
         place_id TEXT,
         google_maps_url TEXT,
+        is_favorite BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `;
+
+    // Add is_favorite column if it doesn't exist (for existing tables)
+    await sql`
+      ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE
     `;
 
     // Create reviews table
@@ -55,11 +72,27 @@ export async function initializeDatabase() {
       )
     `;
 
+    // Create food_diary table
+    await sql`
+      CREATE TABLE IF NOT EXISTS food_diary (
+        id SERIAL PRIMARY KEY,
+        restaurant_id INTEGER REFERENCES restaurants(id) ON DELETE SET NULL,
+        restaurant_name TEXT NOT NULL,
+        photo_url TEXT NOT NULL,
+        comment TEXT,
+        visit_date DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
     // Create indexes for faster queries
     await sql`CREATE INDEX IF NOT EXISTS idx_restaurants_county ON restaurants(county)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_restaurants_area ON restaurants(area)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_restaurants_cuisine ON restaurants(cuisine)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_restaurants_favorite ON restaurants(is_favorite)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_reviews_restaurant_id ON reviews(restaurant_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_food_diary_restaurant_id ON food_diary(restaurant_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_food_diary_visit_date ON food_diary(visit_date)`;
 
     return { success: true };
   } catch (error) {
@@ -234,4 +267,121 @@ export async function getReviewsForRestaurant(restaurantId: number): Promise<Rev
 export async function getRestaurantCount(): Promise<number> {
   const { rows } = await sql<{ count: string }>`SELECT COUNT(*) as count FROM restaurants`;
   return parseInt(rows[0].count, 10);
+}
+
+// Check if restaurant already exists (for duplicate detection)
+export async function checkRestaurantExists(name: string, county: string): Promise<Restaurant | null> {
+  const { rows } = await sql<Restaurant>`
+    SELECT * FROM restaurants
+    WHERE LOWER(name) = LOWER(${name}) AND county = ${county}
+    LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+// Toggle favorite status
+export async function toggleFavorite(id: number): Promise<Restaurant | null> {
+  const { rows } = await sql<Restaurant>`
+    UPDATE restaurants
+    SET is_favorite = NOT is_favorite
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] || null;
+}
+
+// Get favorite restaurants
+export async function getFavoriteRestaurants(): Promise<Restaurant[]> {
+  const { rows } = await sql<Restaurant>`
+    SELECT * FROM restaurants WHERE is_favorite = TRUE ORDER BY name
+  `;
+  return rows;
+}
+
+// Get filtered restaurants with favorites option
+export async function getFilteredRestaurantsWithFavorites(filters: {
+  counties?: string[];
+  areas?: string[];
+  cuisines?: string[];
+  prices?: string[];
+  favoritesOnly?: boolean;
+}): Promise<Restaurant[]> {
+  const { counties, areas, cuisines, prices, favoritesOnly } = filters;
+
+  let query = 'SELECT * FROM restaurants WHERE 1=1';
+  const params: unknown[] = [];
+  let paramIndex = 1;
+
+  if (favoritesOnly) {
+    query += ' AND is_favorite = TRUE';
+  }
+
+  if (counties && counties.length > 0) {
+    query += ` AND county = ANY($${paramIndex})`;
+    params.push(counties);
+    paramIndex++;
+  }
+
+  if (areas && areas.length > 0) {
+    query += ` AND area = ANY($${paramIndex})`;
+    params.push(areas);
+    paramIndex++;
+  }
+
+  if (cuisines && cuisines.length > 0) {
+    query += ` AND cuisine = ANY($${paramIndex})`;
+    params.push(cuisines);
+    paramIndex++;
+  }
+
+  if (prices && prices.length > 0) {
+    query += ` AND price = ANY($${paramIndex})`;
+    params.push(prices);
+    paramIndex++;
+  }
+
+  query += ' ORDER BY name';
+
+  const { rows } = await sql.query(query, params);
+  return rows as Restaurant[];
+}
+
+// Food Diary Functions
+
+// Add diary entry
+export async function addDiaryEntry(entry: {
+  restaurant_id?: number;
+  restaurant_name: string;
+  photo_url: string;
+  comment?: string;
+  visit_date: string;
+}): Promise<DiaryEntry> {
+  const { rows } = await sql<DiaryEntry>`
+    INSERT INTO food_diary (restaurant_id, restaurant_name, photo_url, comment, visit_date)
+    VALUES (${entry.restaurant_id || null}, ${entry.restaurant_name}, ${entry.photo_url}, ${entry.comment || null}, ${entry.visit_date})
+    RETURNING *
+  `;
+  return rows[0];
+}
+
+// Get all diary entries
+export async function getDiaryEntries(): Promise<DiaryEntry[]> {
+  const { rows } = await sql<DiaryEntry>`
+    SELECT * FROM food_diary ORDER BY visit_date DESC, created_at DESC
+  `;
+  return rows;
+}
+
+// Get diary entries for a specific restaurant
+export async function getDiaryEntriesForRestaurant(restaurantId: number): Promise<DiaryEntry[]> {
+  const { rows } = await sql<DiaryEntry>`
+    SELECT * FROM food_diary WHERE restaurant_id = ${restaurantId} ORDER BY visit_date DESC
+  `;
+  return rows;
+}
+
+// Delete diary entry
+export async function deleteDiaryEntry(id: number): Promise<boolean> {
+  const result = await sql`DELETE FROM food_diary WHERE id = ${id}`;
+  return (result.rowCount ?? 0) > 0;
 }

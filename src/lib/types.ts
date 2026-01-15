@@ -7,6 +7,17 @@ export interface Restaurant {
   price: string;
   place_id: string | null;
   google_maps_url: string | null;
+  is_favorite: boolean;
+  created_at: Date;
+}
+
+export interface DiaryEntry {
+  id: number;
+  restaurant_id: number | null;
+  restaurant_name: string;
+  photo_url: string;
+  comment: string | null;
+  visit_date: string;
   created_at: Date;
 }
 
@@ -15,6 +26,7 @@ export interface FilterState {
   area: string[];
   cuisine: string[];
   price: string[];
+  favoritesOnly: boolean;
 }
 
 export interface PlacePhoto {
