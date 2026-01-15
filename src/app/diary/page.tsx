@@ -1,8 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { DiaryEntry} from '@/lib/types';
+import { DiaryEntry } from '@/lib/types';
 import Toast from '@/components/Toast';
+
+// Max dimensions for compressed images
+const MAX_WIDTH = 1200;
+const MAX_HEIGHT = 1200;
+const JPEG_QUALITY = 0.7;
 
 export default function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
@@ -13,8 +18,8 @@ export default function DiaryPage() {
   const [restaurantName, setRestaurantName] = useState('');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [comment, setComment] = useState('');
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,15 +43,103 @@ export default function DiaryPage() {
     loadEntries();
   }, []);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
+  // Convert HEIC to JPEG
+  const convertHeicToJpeg = async (file: File): Promise<Blob> => {
+    // Dynamically import heic2any only when needed
+    const heic2any = (await import('heic2any')).default;
+
+    const result = await heic2any({
+      blob: file,
+      toType: 'image/jpeg',
+      quality: JPEG_QUALITY,
+    });
+
+    // heic2any can return an array or single blob
+    return Array.isArray(result) ? result[0] : result;
+  };
+
+  // Compress and resize image using canvas
+  const compressImage = (file: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+
+        // Calculate new dimensions
+        let { width, height } = img;
+
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        // Create canvas and draw resized image
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to base64 JPEG
+        const base64 = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+        resolve(base64);
       };
-      reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+
+      img.src = url;
+    });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImage(true);
+    setPhotoPreview(null);
+
+    try {
+      let processedFile: Blob = file;
+
+      // Check if it's a HEIC/HEIF file
+      const isHeic = file.type === 'image/heic' ||
+                     file.type === 'image/heif' ||
+                     file.name.toLowerCase().endsWith('.heic') ||
+                     file.name.toLowerCase().endsWith('.heif');
+
+      if (isHeic) {
+        setToast({ message: 'Converting iPhone photo...', type: 'success' });
+        processedFile = await convertHeicToJpeg(file);
+      }
+
+      // Compress the image
+      const compressedBase64 = await compressImage(processedFile);
+      setPhotoPreview(compressedBase64);
+
+      // Show size reduction info
+      const originalSize = (file.size / 1024).toFixed(0);
+      const newSize = (compressedBase64.length * 0.75 / 1024).toFixed(0); // Base64 is ~33% larger
+      setToast({
+        message: `Photo ready! (${originalSize}KB → ${newSize}KB)`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setToast({ message: 'Failed to process image. Please try another photo.', type: 'error' });
+    } finally {
+      setIsProcessingImage(false);
     }
   };
 
@@ -61,8 +154,6 @@ export default function DiaryPage() {
     setIsSubmitting(true);
 
     try {
-      // For now, we'll use the base64 preview as the photo URL
-      // In production, you'd upload to a cloud storage service
       const response = await fetch('/api/diary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,7 +166,8 @@ export default function DiaryPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add diary entry');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add diary entry');
       }
 
       const newEntry = await response.json();
@@ -84,14 +176,18 @@ export default function DiaryPage() {
       // Reset form
       setRestaurantName('');
       setComment('');
-      setPhotoFile(null);
       setPhotoPreview(null);
       setVisitDate(new Date().toISOString().split('T')[0]);
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
 
       setToast({ message: 'Memory saved!', type: 'success' });
     } catch (error) {
       console.error('Error adding diary entry:', error);
-      setToast({ message: 'Failed to save memory', type: 'error' });
+      setToast({ message: error instanceof Error ? error.message : 'Failed to save memory', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -144,24 +240,31 @@ export default function DiaryPage() {
           <div>
             <label className="form-label">Photo *</label>
             <div
-              className={`photo-upload-area ${photoPreview ? 'has-image' : ''}`}
-              onClick={() => fileInputRef.current?.click()}
+              className={`photo-upload-area ${photoPreview ? 'has-image' : ''} ${isProcessingImage ? 'processing' : ''}`}
+              onClick={() => !isProcessingImage && fileInputRef.current?.click()}
             >
-              {photoPreview ? (
+              {isProcessingImage ? (
+                <div className="text-text-muted">
+                  <div className="loading-spinner mx-auto mb-2" />
+                  <span>Processing photo...</span>
+                </div>
+              ) : photoPreview ? (
                 <img src={photoPreview} alt="Preview" className="photo-preview mx-auto" />
               ) : (
                 <div className="text-text-muted">
                   <span className="text-4xl block mb-2">&#128247;</span>
                   <span>Click to upload or take a photo</span>
+                  <span className="block text-xs mt-1">(iPhone photos supported)</span>
                 </div>
               )}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif"
                 capture="environment"
                 onChange={handlePhotoChange}
                 className="hidden"
+                disabled={isProcessingImage}
               />
             </div>
           </div>
@@ -203,7 +306,7 @@ export default function DiaryPage() {
             <button
               type="submit"
               className="btn btn-primary w-full"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isProcessingImage || !photoPreview}
             >
               {isSubmitting ? 'Saving...' : 'Save Memory'}
             </button>
